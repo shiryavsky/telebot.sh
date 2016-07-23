@@ -42,7 +42,7 @@ function pong {
 TeleBot_bindCommand pong "ping"
 
 # Define private command (after valid /secret)
-TeleBot_bindCommand pong "sping"
+TeleBot_bindCommand pong "sping" 1
 
 TeleBot_enable
 TeleBot_goLoop
