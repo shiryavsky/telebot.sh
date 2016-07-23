@@ -9,6 +9,7 @@ TELEBOT_CURLS="${TELEBOT_CURLS:-curl -s --max-time ${TELEBOT_TIMEOUT}}"
 TELEBOT_PASSWD="${TELEBOT_PASSWD:-${TELEBOT_WDIR}.passwd}"
 TELEBOT_DOIT="${TELEBOT_DOIT:-${TELEBOT_WDIR}.do_it}"
 TELEBOT_OFFF="${TELEBOT_OFFF:-${TELEBOT_WDIR}.offset}"
+TELEBOT_SKIP="${TELEBOT_SKIP_OFFLINE}"
 
 trap "rm -f ${TELEBOT_DOIT}" SIGHUP SIGINT SIGTERM
 
@@ -97,48 +98,55 @@ function TeleBot_parseCommands {
     if [ $? -eq 1 ]; then
         MSGS=`echo "${JSON}" | jq -r -c '.result[]'`
         printf '%s\n' "${MSGS}" | while IFS= read -r ONE; do
-            if [ -z "${ONE}" ]; then
-                break
-            fi
-            HANDLERF=""
-            UPDATEID=`echo ${ONE} | jq -r '.update_id'`
-            # Increment update id (offset)
-            if [ "${UPDATEID}" -ge "${TELEBOT_LAST_OFFSET}" ]; then
-                TELEBOT_LAST_OFFSET=${UPDATEID}
-                TELEBOT_LAST_OFFSET=$((${TELEBOT_LAST_OFFSET} + 1))
-                echo ${TELEBOT_LAST_OFFSET} > ${TELEBOT_OFFF}
-            fi
-            MSG=`echo ${ONE} | jq -r '.message.text'`
-            CHATID=`echo ${ONE} | jq -r '.message.from.id'`
-            UNAME=`echo ${ONE} | jq -r '.message.from.username'`
-            for FULLCMD in "${TELEBOT_COMMANDS[@]}"; do
-                FUNC=`echo ${FULLCMD} | awk -F: '{print $1}'`
-                CMD=`echo ${FULLCMD} | awk -F: '{print $2}'`
-                AUTH=`echo ${FULLCMD} | awk -F: '{print $3}'`
-                echo ${MSG} | grep -Eq ^\/?${CMD}
-                #Ok this handler to tall
-                if [ $? -eq 0 ]; then
-                    HANDLERF="1"
-                    if [ ! -z "${AUTH}" ]; then
-                        TeleBot_authorizedChat ${CHATID}
-                        if [ $? -eq 0 ]; then
-                            echo "["`date`"] Executed private ${FUNC} by @${UNAME}"
-                            ${FUNC} ${UNAME} ${CHATID} "${MSG}"
-                        else
-                            echo "["`date`"] Trying to execute ${FUNC} by @${UNAME}"
-                            TeleBot_sendMessage ${CHATID} "Tell me any secret..."
-                        fi
-                    else
-                        echo "["`date`"] Executed ${FUNC} by @${UNAME}"
-                        ${FUNC} ${UNAME} ${CHATID} "${MSG}"
-                    fi
+            if [ ! -z "${ONE}" ]; then
+                HANDLERF=""
+                UPDATEID=`echo ${ONE} | jq -r '.update_id'`
+                # Increment update id (offset)
+                if [ "${UPDATEID}" -ge "${TELEBOT_LAST_OFFSET}" ]; then
+                    TELEBOT_LAST_OFFSET=${UPDATEID}
+                    TELEBOT_LAST_OFFSET=$((${TELEBOT_LAST_OFFSET} + 1))
+                    echo ${TELEBOT_LAST_OFFSET} > ${TELEBOT_OFFF}
                 fi
-            done
-            #No one command handlers found
-            if [ -z ${HANDLERF} ]; then
-                TeleBot_sendMessage ${CHATID} "Wut?"
+                MSG=`echo ${ONE} | jq -r '.message.text'`
+                CHATID=`echo ${ONE} | jq -r '.message.from.id'`
+                UNAME=`echo ${ONE} | jq -r '.message.from.username'`
+
+                if [ -z "${TELEBOT_SKIP}" ]; then
+                    for FULLCMD in "${TELEBOT_COMMANDS[@]}"; do
+                        FUNC=`echo ${FULLCMD} | awk -F: '{print $1}'`
+                        CMD=`echo ${FULLCMD} | awk -F: '{print $2}'`
+                        AUTH=`echo ${FULLCMD} | awk -F: '{print $3}'`
+                        echo ${MSG} | grep -Eq ^\/?${CMD}
+                        #Ok this handler to tall
+                        if [ $? -eq 0 ]; then
+                            HANDLERF="1"
+                            if [ ! -z "${AUTH}" ]; then
+                                TeleBot_authorizedChat ${CHATID}
+                                if [ $? -eq 0 ]; then
+                                    echo "["`date`"] Executed private ${FUNC} by @${UNAME}"
+                                    ${FUNC} ${UNAME} ${CHATID} "${MSG}"
+                                else
+                                    echo "["`date`"] Trying to execute ${FUNC} by @${UNAME}"
+                                    TeleBot_sendMessage ${CHATID} "Tell me any secret..."
+                                fi
+                            else
+                                echo "["`date`"] Executed ${FUNC} by @${UNAME}"
+                                ${FUNC} ${UNAME} ${CHATID} "${MSG}"
+                            fi
+                        fi
+                    done
+                    #No one command handlers found
+                    if [ -z ${HANDLERF} ]; then
+                        TeleBot_sendMessage ${CHATID} "Wut?"
+                    fi
+                else
+                    echo "["`date`"] Skipped offline message from @${UNAME}: ${MSG}"
+                fi
             fi
         done
+        if [ -z "${MSGS}" ]; then
+            TELEBOT_SKIP=""
+        fi
     fi
 }
 
