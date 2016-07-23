@@ -1,12 +1,13 @@
 #!/bin/bash
 
-TELEBOT_TIMEOUT="10"
-TELEBOT_APIURL="https://api.telegram.org/bot${TELEBOT_KEY}/"
-TELEBOT_CURLS="curl -s --max-time ${TELEBOT_TIMEOUT}"
-TELEBOT_PASSWD=".passwd"
-TELEBOT_DOIT=".do_it"
-TELEBOT_OFFF=".offset"
-TELEBOT_LAST_OFFSET="0"
+if [ -z "TELEBOT_KEY" ]; then echo "No TELEBOT_KEY set"; exit 1 ; fi
+if [ -z "TELEBOT_SECRETWORD" ]; then TELEBOT_SECRETWORD="12345"; fi
+if [ -z "TELEBOT_TIMEOUT" ]; then TELEBOT_TIMEOUT="10"; fi
+if [ -z "TELEBOT_APIURL" ]; then TELEBOT_APIURL="https://api.telegram.org/bot${TELEBOT_KEY}/"; fi
+if [ -z "TELEBOT_CURLS" ]; then TELEBOT_CURLS="curl -s --max-time ${TELEBOT_TIMEOUT}"; fi
+if [ -z "TELEBOT_PASSWD" ]; then TELEBOT_TIMEOUT=".passwd"; fi
+if [ -z "TELEBOT_DOIT" ]; then TELEBOT_TIMEOUT=".do_it"; fi
+if [ -z "TELEBOT_OFFF" ]; then TELEBOT_TIMEOUT=".offset"; fi
 
 trap "rm -f ${TELEBOT_DOIT}" SIGHUP SIGINT SIGTERM
 
