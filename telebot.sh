@@ -18,6 +18,7 @@ if ! hash curl 2>/dev/null; then apt-get -qq install curl || echo "Please, do su
 if ! hash jq 2>/dev/null; then apt-get -qq install jq || echo "Please, do sudo apt-get install jq" && exit 1; fi
 
 TELEBOT_COMMANDS=()
+TELEBOT_DEFAULT=""
 
 if [ ! -f ${TELEBOT_PASSWD} ]; then touch ${TELEBOT_PASSWD}; fi
 if [ ! -f ${TELEBOT_OFFF} ]; then echo "0" > ${TELEBOT_OFFF} ; fi
@@ -116,7 +117,7 @@ function TeleBot_parseCommands {
                         FUNC=`echo ${FULLCMD} | awk -F: '{print $1}'`
                         CMD=`echo ${FULLCMD} | awk -F: '{print $2}'`
                         AUTH=`echo ${FULLCMD} | awk -F: '{print $3}'`
-                        echo ${MSG} | grep -Eq ^\/?${CMD}
+                        echo ${MSG} | grep -Eqi ^\/?${CMD}
                         #Ok this handler to tall
                         if [ $? -eq 0 ]; then
                             HANDLERF="1"
@@ -124,20 +125,24 @@ function TeleBot_parseCommands {
                                 TeleBot_authorizedChat ${CHATID}
                                 if [ $? -eq 0 ]; then
                                     echo "["`date`"] Executed private ${FUNC} by @${UNAME}"
-                                    ${FUNC} ${UNAME} ${CHATID} "${MSG}"
+                                    "${FUNC}" ${UNAME} ${CHATID} "${MSG}"
                                 else
                                     echo "["`date`"] Trying to execute ${FUNC} by @${UNAME}"
                                     TeleBot_sendMessage ${CHATID} "Tell me any secret..."
                                 fi
                             else
                                 echo "["`date`"] Executed ${FUNC} by @${UNAME}"
-                                ${FUNC} ${UNAME} ${CHATID} "${MSG}"
+                                "${FUNC}" ${UNAME} ${CHATID} "${MSG}"
                             fi
                         fi
                     done
                     #No one command handlers found
-                    if [ -z ${HANDLERF} ]; then
-                        TeleBot_sendMessage ${CHATID} "Wut?"
+                    if [ -z "${HANDLERF}" ]; then
+                        if [ -z "${TELEBOT_DEFAULT}" ]; then
+                            TeleBot_sendMessage ${CHATID} "Wut?"
+                        else
+                            "${TELEBOT_DEFAULT}" ${UNAME} ${CHATID} "${MSG}"
+                        fi
                     fi
                 else
                     echo "["`date`"] Skipped offline message from @${UNAME}: ${MSG}"
@@ -155,6 +160,10 @@ function TeleBot_bindCommand {
     local CMD=$2
     local AUTH=$3
     TELEBOT_COMMANDS+=("${FUNC}:${CMD}:${AUTH}")
+}
+
+function TeleBot_bindDefault {
+    TELEBOT_DEFAULT="$1"
 }
 
 function TeleBot_log {
