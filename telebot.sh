@@ -26,9 +26,22 @@ function TeleBot__isResult {
    echo $1 | jq -r '.ok' | grep -q -v "true"
 }
 
+function TeleBot__rawurlencode() {
+  local string="${1}"; local strlen=${#string}; local encoded=""; local pos c o
+  for (( pos=0 ; pos<strlen ; pos++ )); do
+     c=${string:$pos:1}
+     case "$c" in
+        [-_.~a-zA-Z0-9] ) o="${c}" ;;
+        * )               printf -v o '%%%02x' "'$c"
+     esac
+     encoded+="${o}"
+  done
+  echo "${encoded}"
+}
+
 function TeleBot_sendMessage {
     local CHATID=$1
-    local MSG=$2
+    local MSG=$(TeleBot__rawurlencode "$2")
 	local JSON=`${TELEBOT_CURLS} -d "chat_id=${CHATID}&disable_web_page_preview=1&text=${MSG}&parse_mode=HTML" "${TELEBOT_APIURL}sendMessage" | tr '\n' ' '`
     TeleBot__isResult "${JSON}"
     if [ $? -eq 0 ]; then
