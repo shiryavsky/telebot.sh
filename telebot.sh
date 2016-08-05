@@ -98,7 +98,7 @@ function TeleBot_parseCommands {
                 MSG=`echo ${ONE} | jq -r '.message.text'`
                 CHATID=`echo ${ONE} | jq -r '.message.from.id'`
                 UNAME=`echo ${ONE} | jq -r '.message.from.username'`
-                if [ -z "${UNNAME}" ]; then
+                if [ -z "${UNAME}" ]; then
                     UNAME="noname_${CHATID}"
                 fi
                 if [ -z "${TELEBOT_SKIP}" ]; then
