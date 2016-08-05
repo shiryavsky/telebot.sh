@@ -28,23 +28,10 @@ function TeleBot__isResult {
    echo $1 | jq -r '.ok' | grep -q -v "true"
 }
 
-function TeleBot__rawurlencode() {
-  local string="${1}"; local strlen=${#string}; local encoded=""; local pos c o
-  for (( pos=0 ; pos<strlen ; pos++ )); do
-     c=${string:$pos:1}
-     case "$c" in
-        [-_.~a-zA-Z0-9А-я] )    o="${c}" ;;
-        * )                     printf -v o '%%%02x' "'$c"
-     esac
-     encoded+="${o}"
-  done
-  echo "${encoded}"
-}
-
 function TeleBot_sendMessage {
     local CHATID=$1
-    local MSG=$(TeleBot__rawurlencode "$2")
-	local JSON=`${TELEBOT_CURLS} -d "chat_id=${CHATID}&disable_web_page_preview=1&text=${MSG}&parse_mode=HTML" "${TELEBOT_APIURL}sendMessage" | tr '\n' ' '`
+    local MSG=$(echo "$2" | sed 's:%:%25:g; s: :%20:g; s:<:%3C:g; s:>:%3E:g; s:#:%23:g; s:{:%7B:g; s:}:%7D:g; s:|:%7C:g; s:\\:%5C:g; s:\^:%5E:g; s:~:%7E:g; s:\[:%5B:g; s:\]:%5D:g; s:`:%60:g; s:;:%3B:g; s:/:%2F:g; s:?:%3F:g; s^:^%3A^g; s:@:%40:g; s:=:%3D:g; s:&:%26:g; s:\$:%24:g; s:\!:%21:g; s:\*:%2A:g;' )
+	local JSON=`${TELEBOT_CURLS} -d "chat_id=${CHATID}&text=${MSG}&disable_web_page_preview=1&parse_mode=HTML" "${TELEBOT_APIURL}sendMessage" | tr '\n' ' '`
     TeleBot__isResult "${JSON}"
     if [ $? -eq 0 ]; then
         echo "["`date`"] Failed Send message to ${CHATID}:"
@@ -111,7 +98,9 @@ function TeleBot_parseCommands {
                 MSG=`echo ${ONE} | jq -r '.message.text'`
                 CHATID=`echo ${ONE} | jq -r '.message.from.id'`
                 UNAME=`echo ${ONE} | jq -r '.message.from.username'`
-
+                if [ -z "${UNNAME}" ]; then
+                    UNAME="noname_${CHATID}"
+                fi
                 if [ -z "${TELEBOT_SKIP}" ]; then
                     for FULLCMD in "${TELEBOT_COMMANDS[@]}"; do
                         FUNC=`echo ${FULLCMD} | awk -F: '{print $1}'`
